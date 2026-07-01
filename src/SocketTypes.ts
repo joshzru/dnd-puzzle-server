@@ -14,6 +14,6 @@ export interface InterServerEvents {
 }
 
 export interface SocketData {
-    name: string,
+    name: string;
     age: number;
 }
