@@ -1,9 +1,20 @@
 {
+  "name": "dnd-puzzle-server",
+  "version": "0.0.1",
+  "description": "A local server to host my interactive D&D puzzles for my players.",
+  "type": "module",
   "scripts": {
     "build": "tsc",
     "start": "node dist/index.js"
   },
   "devDependencies": {
-    "@tsconfig/node24": "^24.0.4"
+    "@tsconfig/node26": "^26.0.0",
+    "@types/express": "^5.0.6",
+    "typescript": "^6.0.3"
+  },
+  "dependencies": {
+    "express": "^5.2.1",
+    "socket.io": "^4.8.3",
+    "socket.io-client": "^4.8.3"
   }
 }
