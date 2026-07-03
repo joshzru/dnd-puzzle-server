@@ -65,13 +65,21 @@ body {
     fill: var(--surface-0);
 }
 
+.dial-rotor {
+    fill: var(--rosewater);
+    transform-origin: center;
+}
+
 .meter-border {
     fill: none;
     stroke: var(--surface-0);
     stroke-width: 5;
 }
 
-.dial-rotor {
-    fill: var(--rosewater);
-    transform-origin: center;
+.meter-volume {
+    fill: var(--blue);
+}
+
+.meter-volume:hover {
+    transform: scaleY(0.7);
 }
