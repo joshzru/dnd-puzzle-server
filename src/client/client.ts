@@ -111,14 +111,14 @@ window.addEventListener('pointermove', function (e) {
     }
 })
 
-function animateDials() {
+function animateDials(): void {
     for ( const dial of dialList ) {
         animateDial(dial);
     }
     requestAnimationFrame(animateDials);
 }
 
-function animateDial(dial: ClientDialState) {
+function animateDial(dial: ClientDialState): void {
     let velocity = getShortestDelta(dial.getTargetAngle(), dial.currentAngle);
     if ( Math.abs(velocity) <= 1e-4 ) {
         dial.currentAngle = dial.getTargetAngle();
@@ -130,14 +130,14 @@ function animateDial(dial: ClientDialState) {
     if ( dial.element !== null ) dial.element.style.transform = `rotate(${dial.currentAngle}rad)`;
 }
 
-function getShortestDelta(to: number, from: number) {
+function getShortestDelta(to: number, from: number): number {
     let delta = (to - from) % (2 * Math.PI);
     if ( delta > Math.PI ) delta -= (2 * Math.PI);
     if ( delta < -Math.PI ) delta += (2 * Math.PI);
     return delta;
 }
 
-function normalizeAngle(angle: number) {
+function normalizeAngle(angle: number): number {
     angle %= (2 * Math.PI);
     angle = (angle + (2 * Math.PI)) % (2 * Math.PI);
     if (angle > Math.PI) angle -= 2 * Math.PI;
@@ -146,14 +146,16 @@ function normalizeAngle(angle: number) {
 
 requestAnimationFrame(animateDials);
 
-function getAngle(cx: number, cy: number, px: number, py: number) {
+function getAngle(cx: number, cy: number, px: number, py: number): number {
     return Math.atan2(py-cy, px-cx);
 }
 
-function getNearestDeadzone(angle: number) {
-    const leftDeadzone = Math.PI * (3/4)
-    const rightDeadzone = Math.PI * (1/4)
-    if ( angle <= rightDeadzone || angle >= leftDeadzone ) return angle;
+// Look into snapping to the nearest deadzone based on the previous angle instead
+// of the new angle.
+function getNearestDeadzone(angle: number): number {
+    const leftDeadzone = Math.PI * (1/4)
+    const rightDeadzone = Math.PI * (3/4)
+    if ( angle <= leftDeadzone || angle >= rightDeadzone ) return angle;
     if ( Math.abs(angle - rightDeadzone) <= Math.abs(angle - leftDeadzone) ) return rightDeadzone;
     return leftDeadzone;
 }

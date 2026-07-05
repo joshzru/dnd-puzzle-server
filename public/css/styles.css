@@ -79,7 +79,3 @@ body {
 .meter-volume {
     fill: var(--blue);
 }
-
-.meter-volume:hover {
-    transform: scaleY(0.7);
-}
