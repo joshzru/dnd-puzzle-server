@@ -1,133 +1,196 @@
-import { request } from 'express';
 import type { ServerToClientEvents, ClientToServerEvents } from '../SocketTypes.js';
 import { io, Socket } from 'socket.io-client';
 
 const socket: Socket<ServerToClientEvents, ClientToServerEvents> = io();
 
-const clamp = (num: number, min: number, max: number) => Math.min(Math.max(num, min), max);
+const EPSILON = 1e-4;
 
-// Testing dial rotation, this will be given to us from the server in the final
-// version
-const state: ClientState = {
-    meters: {
-        left: {
-            element: document.querySelector<SVGElement>('#meter-left'),
-            solutionPercent: 0.5,
-            currentPercent: 0,
-            targetPercent: 0,
-        },
-        center: {
-            element: document.querySelector<SVGElement>('#meter-center'),
-            solutionPercent: 0.5,
-            currentPercent: 0,
-            targetPercent: 0,
-        },
-        right: {
-            element: document.querySelector<SVGElement>('#meter-right'),
-            solutionPercent: 0.5,
-            currentPercent: 0,
-            targetPercent: 0,
-        },
-    },
-    dials: {
-        left: {
-            element: document.querySelector<SVGElement>('#dial-left'),
-            pointerAngle: 0,
-            referenceAngle: -Math.PI / 2,
-            clientDelta: 0,
-            currentAngle: -Math.PI / 2,
-            getTargetAngle: () => normalizeAngle(state.dials.left.referenceAngle + state.dials.left.clientDelta),
-            dragging: false,
-        },
-        top: {
-            element: document.querySelector<SVGElement>('#dial-top'),
-            pointerAngle: 0,
-            referenceAngle: -Math.PI / 2,
-            clientDelta: 0,
-            currentAngle: -Math.PI / 2,
-            getTargetAngle: () => normalizeAngle(state.dials.top.referenceAngle + state.dials.top.clientDelta),
-            dragging: false,
-        },
-        right: {
-            element: document.querySelector<SVGElement>('#dial-right'),
-            pointerAngle: 0,
-            referenceAngle: -Math.PI / 2,
-            clientDelta: 0,
-            currentAngle: -Math.PI / 2,
-            getTargetAngle: () => normalizeAngle(state.dials.right.referenceAngle + state.dials.right.clientDelta),
-            dragging: false,
-        }
-    },
-    relationMatrix: [
+interface DialOptions {
+    deadZoneLeft: number;
+    deadZoneRight: number;
+}
+
+class Meter {
+    readonly element: SVGElement | null;
+
+    solutionPercent = 0.5;
+    currentPercent = 0;
+    targetPercent = 0;
+
+    constructor(selector: string) {
+        this.element = document.querySelector(selector);
+    }
+
+    update() {
+        const velocity = (this.targetPercent - this.currentPercent) * 0.1;
+
+        if (Math.abs(velocity) < EPSILON)
+            this.currentPercent = this.targetPercent;
+        else
+            this.currentPercent += velocity;
+
+        // Update SVG here
+    }
+}
+
+class Dial {
+
+    readonly element: SVGElement | null;
+
+    currentAngle = 0;
+    
+    targetAngle = 0;
+
+    lastPointerAngle = 0;
+
+    dragging = false;
+
+    deadZoneLeft: number;
+
+    deadZoneRight: number;
+
+    damping = 0.1;
+
+    get atLeftDeadZone() {
+        return Math.abs(this.targetAngle - this.deadZoneLeft) < EPSILON;
+    }
+
+    get atRightDeadZone() {
+        return Math.abs(this.targetAngle - this.deadZoneRight) < EPSILON;
+    }
+
+    constructor(selector: string, options: DialOptions) {
+        this.element = document.querySelector(selector);
+        this.deadZoneLeft = normalizeAngle(options.deadZoneLeft);
+        this.deadZoneRight = normalizeAngle(options.deadZoneRight);
+        this.installListeners();
+    }
+
+    update() {
+        let velocity = getShortestDelta(this.targetAngle, this.currentAngle);
+
+        if ( Math.abs(velocity) < EPSILON )
+            this.currentAngle = this.targetAngle;
+        else
+            this.currentAngle += velocity * this.damping;
+
+        this.element?.style.setProperty(
+            "transform",
+            `rotate(${this.currentAngle}rad)`
+        );
+    }
+
+    private clampToDeadZone(angle: number): number {
+        if ( !isAngleBetween(angle, this.deadZoneLeft, this.deadZoneRight) )
+            return angle;
+
+        const leftDist = Math.abs(getShortestDelta(this.deadZoneLeft, angle));
+        const rightDist = Math.abs(getShortestDelta(this.deadZoneRight, angle));
+
+        return leftDist < rightDist
+            ? this.deadZoneLeft
+            : this.deadZoneRight;
+    }
+
+    private installListeners() {
+
+        this.element?.addEventListener("pointerdown", e => {
+
+            if ( this.dragging )
+                return;
+
+            this.dragging = true;
+
+            const rect = this.element?.getBoundingClientRect();
+
+            if ( !rect ) return;
+
+            const cx = rect.left + rect.width / 2;
+            const cy = rect.top + rect.height / 2;
+
+            this.lastPointerAngle = getAngle(
+                cx,
+                cy,
+                e.clientX,
+                e.clientY
+            );
+        });
+
+        window.addEventListener("pointermove", e => {
+            if ( !this.dragging ) return;
+
+            const rect = this.element?.getBoundingClientRect();
+
+            if ( !rect ) return;
+
+            const cx = rect.left + rect.width / 2;
+            const cy = rect.top + rect.height / 2;
+
+            const newAngle = getAngle(cx, cy, e.clientX, e.clientY);
+            let delta =  getShortestDelta(newAngle, this.lastPointerAngle);
+
+            if (this.atLeftDeadZone && delta > 0) delta = 0;
+            if (this.atRightDeadZone && delta < 0) delta = 0;
+
+            const proposed = normalizeAngle(this.targetAngle + delta);
+            this.targetAngle = this.clampToDeadZone(proposed);
+            this.lastPointerAngle = newAngle;
+        });
+
+        window.addEventListener("pointerup", () => {
+            if ( !this.dragging ) return;
+            this.dragging = false;
+        });
+    }
+}
+
+class ClientState {
+
+    readonly dials = {
+        left: new Dial("#dial-left", {
+            deadZoneLeft: 3 * Math.PI / 4,
+            deadZoneRight: -3 * Math.PI / 4
+        }),
+        top: new Dial("#dial-top", {
+            deadZoneLeft: 3 * Math.PI / 4,
+            deadZoneRight: -3 * Math.PI / 4
+        }),
+        right: new Dial("#dial-right", {
+            deadZoneLeft: 3 * Math.PI / 4,
+            deadZoneRight: -3 * Math.PI / 4
+        })
+    };
+
+    readonly meters = {
+        left: new Meter("#meter-left"),
+        center: new Meter("#meter-center"),
+        right: new Meter("#meter-right")
+    };
+
+    relationMatrix = [
         [1, 2, -1],
         [2, -1, 1],
-        [-1, 1, 2],
-    ],
+        [-1, 1, 2]
+    ];
+
+    update() {
+        Object.values(this.dials).forEach(d => d.update());
+        Object.values(this.meters).forEach(m => m.update());
+        requestAnimationFrame(() => this.update());
+    }
 }
 
-const dialList = [
-    state.dials.left,
-    state.dials.top,
-    state.dials.right,
-]
+function isAngleBetween(angle: number, left: number, right: number): boolean {
+    angle = normalizeAngle(angle);
+    left = normalizeAngle(left);
+    right = normalizeAngle(right);
 
-for ( const dial of dialList ) {
-    dial.element?.addEventListener('pointerdown', function (e) {
-        if ( dial.dragging ) return;
-        dial.dragging = true;
-        const rect = this.getBoundingClientRect();
-        const cx = rect.left + rect.width / 2;
-        const cy = rect.top + rect.height / 2;
-        dial.pointerAngle = getAngle(cx, cy, e.clientX, e.clientY);
-    })
-}
+    if (left <= right)
+        return angle >= left && angle <= right;
 
-window.addEventListener('pointerup', function (e) {
-    for ( const dial of dialList ) {
-        if ( !dial.dragging ) continue;
-        dial.referenceAngle = normalizeAngle(dial.referenceAngle + dial.clientDelta);
-        dial.clientDelta = 0;
-        dial.dragging = false;
-    }
-})
+    // interval wraps across ±π
 
-window.addEventListener('pointermove', function (e) {
-    for ( const dial of dialList) {
-        if ( !dial.dragging ) continue;
-        const rect = dial.element?.getBoundingClientRect();
-        if ( typeof rect === 'undefined' ) continue;
-
-        const cx = rect.left + rect.width / 2;
-        const cy = rect.top + rect.height / 2;
-        const newAngle = getAngle(cx, cy, e.clientX, e.clientY);
-        const delta = newAngle - dial.pointerAngle;
-        // For testing, replace with emitting delta to server via socket.
-        dial.clientDelta = delta;
-        //const newTarget = dial.getTargetAngle();
-        //const nearestDeadzone = getNearestDeadzone(newTarget);
-        //if ( newTarget === nearestDeadzone ) continue;
-        // target = current + delta -> delta = target - current
-        //dial.clientDelta = nearestDeadzone - dial.currentAngle;
-    }
-})
-
-function animateDials(): void {
-    for ( const dial of dialList ) {
-        animateDial(dial);
-    }
-    requestAnimationFrame(animateDials);
-}
-
-function animateDial(dial: ClientDialState): void {
-    let velocity = getShortestDelta(dial.getTargetAngle(), dial.currentAngle);
-    if ( Math.abs(velocity) <= 1e-4 ) {
-        dial.currentAngle = dial.getTargetAngle();
-    }
-    else {
-        velocity *= 0.1;
-        dial.currentAngle += velocity;
-    }
-    if ( dial.element !== null ) dial.element.style.transform = `rotate(${dial.currentAngle}rad)`;
+    return angle >= left || angle <= right;
 }
 
 function getShortestDelta(to: number, from: number): number {
@@ -144,54 +207,9 @@ function normalizeAngle(angle: number): number {
     return angle;
 }
 
-requestAnimationFrame(animateDials);
-
 function getAngle(cx: number, cy: number, px: number, py: number): number {
     return Math.atan2(py-cy, px-cx);
 }
 
-// Look into snapping to the nearest deadzone based on the previous angle instead
-// of the new angle.
-function getNearestDeadzone(angle: number): number {
-    const leftDeadzone = Math.PI * (1/4)
-    const rightDeadzone = Math.PI * (3/4)
-    if ( angle <= leftDeadzone || angle >= rightDeadzone ) return angle;
-    if ( Math.abs(angle - rightDeadzone) <= Math.abs(angle - leftDeadzone) ) return rightDeadzone;
-    return leftDeadzone;
-}
-
-interface ClientState {
-    meters: ClientMetersState;
-    dials: ClientDialsState;
-    relationMatrix: number[][];
-}
-
-interface ClientMetersState {
-    left: ClientMeterState;
-    center: ClientMeterState;
-    right: ClientMeterState;
-}
-
-interface ClientMeterState {
-    element: SVGElement | null;
-    solutionPercent: number;
-    currentPercent: number;
-    targetPercent: number;
-}
-
-
-interface ClientDialsState {
-    left: ClientDialState;
-    top: ClientDialState;
-    right: ClientDialState;
-}
-
-interface ClientDialState {
-    element: SVGElement | null;
-    pointerAngle: number;
-    referenceAngle: number;
-    clientDelta: number;
-    currentAngle: number;
-    getTargetAngle: () => number;
-    dragging: boolean
-}
+const state = new ClientState();
+state.update();
