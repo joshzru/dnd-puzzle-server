@@ -75,7 +75,3 @@ body {
     stroke: var(--surface-0);
     stroke-width: 5;
 }
-
-.meter-volume {
-    fill: var(--blue);
-}

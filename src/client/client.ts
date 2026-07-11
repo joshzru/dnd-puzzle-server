@@ -1,53 +1,81 @@
-import type { ServerToClientEvents, ClientToServerEvents } from '../SocketTypes.js';
+import { type ServerToClientEvents, type ClientToServerEvents, type DialId, MeterId, PuzzleInitState, DialState, MeterState } from '../SocketTypes.js';
 import { io, Socket } from 'socket.io-client';
 
+const EPSILON = 1e-4;
 const socket: Socket<ServerToClientEvents, ClientToServerEvents> = io();
 
-const EPSILON = 1e-4;
-
-interface DialOptions {
-    deadZoneLeft: number;
-    deadZoneRight: number;
+interface RGB {
+    r: number;
+    g: number;
+    b: number;
 }
 
 class Meter {
     readonly element: SVGElement | null;
+    readonly volume: SVGRectElement | null;
 
-    solutionPercent = 0.5;
-    currentPercent = 0;
-    targetPercent = 0;
+    readonly minHeight = 5;
+    readonly maxHeight = 290;
+    readonly bottomY = 295;
 
-    constructor(selector: string) {
-        this.element = document.querySelector(selector);
+    currentPercent: number;
+    targetPercent: number;
+    solutionPercent: number;
+    damping = 0.1;
+
+    green: RGB = {
+        r: 166,
+        g: 209,
+        b: 137,
+    };
+    red: RGB = {
+        r: 231,
+        g: 130,
+        b: 132,
+    }
+
+    constructor(m: MeterState) {
+        this.element = document.querySelector(`#meter-${m.id}`);
+        this.volume = this.element?.querySelector(".meter-volume") ?? null;
+        this.currentPercent = m.percent;
+        this.targetPercent = m.percent;
+        this.solutionPercent = m.target;
     }
 
     update() {
-        const velocity = (this.targetPercent - this.currentPercent) * 0.1;
+        let velocity = (this.targetPercent - this.currentPercent);
+        velocity *= this.damping;
 
         if (Math.abs(velocity) < EPSILON)
             this.currentPercent = this.targetPercent;
         else
             this.currentPercent += velocity;
 
-        // Update SVG here
+        const height = lerp(this.minHeight, this.maxHeight, this.currentPercent);
+        const y = this.bottomY - height;
+
+        const difference = Math.abs(this.currentPercent - this.solutionPercent);
+        const t = 1 - clamp(0, 1, difference / 0.5);
+        const color = rgbLerp(this.red, this.green, t);
+
+        this.volume?.setAttribute("height", `${height}`);
+        this.volume?.setAttribute("y", `${y}`);
+        this.volume?.setAttribute("fill", `rgb(${color.r},${color.g},${color.b})`);
     }
 }
 
 class Dial {
+    readonly id: DialId;
 
     readonly element: SVGElement | null;
 
-    currentAngle = 0;
-    
-    targetAngle = 0;
-
-    lastPointerAngle = 0;
-
-    dragging = false;
-
+    currentAngle: number;
+    targetAngle: number;
+    lastPointerAngle: number;
     deadZoneLeft: number;
-
     deadZoneRight: number;
+    
+    dragging = false;
 
     damping = 0.1;
 
@@ -59,11 +87,15 @@ class Dial {
         return Math.abs(this.targetAngle - this.deadZoneRight) < EPSILON;
     }
 
-    constructor(selector: string, options: DialOptions) {
-        this.element = document.querySelector(selector);
-        this.deadZoneLeft = normalizeAngle(options.deadZoneLeft);
-        this.deadZoneRight = normalizeAngle(options.deadZoneRight);
-        this.installListeners();
+    constructor(dial: DialState) {
+        this.element = document.querySelector(`#dial-${dial.id}`);
+        this.id = dial.id;
+        this.currentAngle = dial.angle;
+        this.targetAngle = dial.angle;
+        this.lastPointerAngle = dial.angle;
+        this.deadZoneLeft = normalizeAngle(dial.options.deadZoneLeft);
+        this.deadZoneRight = normalizeAngle(dial.options.deadZoneRight);
+        this.installListeners(socket);
     }
 
     update() {
@@ -72,7 +104,7 @@ class Dial {
         if ( Math.abs(velocity) < EPSILON )
             this.currentAngle = this.targetAngle;
         else
-            this.currentAngle += velocity * this.damping;
+            this.currentAngle += normalizeAngle(velocity * this.damping);
 
         this.element?.style.setProperty(
             "transform",
@@ -80,24 +112,11 @@ class Dial {
         );
     }
 
-    private clampToDeadZone(angle: number): number {
-        if ( !isAngleBetween(angle, this.deadZoneLeft, this.deadZoneRight) )
-            return angle;
-
-        const leftDist = Math.abs(getShortestDelta(this.deadZoneLeft, angle));
-        const rightDist = Math.abs(getShortestDelta(this.deadZoneRight, angle));
-
-        return leftDist < rightDist
-            ? this.deadZoneLeft
-            : this.deadZoneRight;
-    }
-
-    private installListeners() {
+    private installListeners(socket: Socket) {
 
         this.element?.addEventListener("pointerdown", e => {
 
-            if ( this.dragging )
-                return;
+            if ( this.dragging ) return;
 
             this.dragging = true;
 
@@ -108,12 +127,7 @@ class Dial {
             const cx = rect.left + rect.width / 2;
             const cy = rect.top + rect.height / 2;
 
-            this.lastPointerAngle = getAngle(
-                cx,
-                cy,
-                e.clientX,
-                e.clientY
-            );
+            this.lastPointerAngle = getAngle(cx, cy, e.clientX, e.clientY);
         });
 
         window.addEventListener("pointermove", e => {
@@ -127,14 +141,10 @@ class Dial {
             const cy = rect.top + rect.height / 2;
 
             const newAngle = getAngle(cx, cy, e.clientX, e.clientY);
-            let delta =  getShortestDelta(newAngle, this.lastPointerAngle);
-
-            if (this.atLeftDeadZone && delta > 0) delta = 0;
-            if (this.atRightDeadZone && delta < 0) delta = 0;
-
-            const proposed = normalizeAngle(this.targetAngle + delta);
-            this.targetAngle = this.clampToDeadZone(proposed);
+            const delta =  getShortestDelta(newAngle, this.lastPointerAngle);
             this.lastPointerAngle = newAngle;
+
+            socket.emit("dialMove", this.id, delta);
         });
 
         window.addEventListener("pointerup", () => {
@@ -146,51 +156,65 @@ class Dial {
 
 class ClientState {
 
-    readonly dials = {
-        left: new Dial("#dial-left", {
-            deadZoneLeft: 3 * Math.PI / 4,
-            deadZoneRight: -3 * Math.PI / 4
-        }),
-        top: new Dial("#dial-top", {
-            deadZoneLeft: 3 * Math.PI / 4,
-            deadZoneRight: -3 * Math.PI / 4
-        }),
-        right: new Dial("#dial-right", {
-            deadZoneLeft: 3 * Math.PI / 4,
-            deadZoneRight: -3 * Math.PI / 4
+    dials = new Map<DialId, Dial>();
+    meters = new Map<MeterId, Meter>();
+
+    constructor() {
+        socket.on("puzzleInit", state => clientState.initialize(state));
+        socket.on("puzzleSolved", () => {
+            console.log("solved!");
         })
-    };
+        socket.on("puzzleState", state => {
+            const dial = this.dials.get(state.dial.id);
+            if ( !dial ) return;
+            dial.targetAngle = state.dial.angle;
+            
+            for ( const meter of state.meters.values()) {
+                const m = this.meters.get(meter.id);
+                if ( !m ) return;
+                m.targetPercent = meter.percent;
+            }
+        })
+    }
 
-    readonly meters = {
-        left: new Meter("#meter-left"),
-        center: new Meter("#meter-center"),
-        right: new Meter("#meter-right")
-    };
+    initialize(state: PuzzleInitState) {
+        state.dials.forEach(d => {
+            this.dials.set(d.id, new Dial(d));
+        })
 
-    relationMatrix = [
-        [1, 2, -1],
-        [2, -1, 1],
-        [-1, 1, 2]
-    ];
+        state.meters.forEach(m => {
+            this.meters.set(m.id, new Meter(m));
+        })
+
+        this.update();
+    }
 
     update() {
-        Object.values(this.dials).forEach(d => d.update());
-        Object.values(this.meters).forEach(m => m.update());
+        for ( const dial of this.dials.values() )
+            dial.update();
+
+        for ( const meter of this.meters.values() )
+            meter.update();
+
         requestAnimationFrame(() => this.update());
     }
 }
 
-function isAngleBetween(angle: number, left: number, right: number): boolean {
-    angle = normalizeAngle(angle);
-    left = normalizeAngle(left);
-    right = normalizeAngle(right);
+function clamp(min: number, max: number, value: number): number {
+    return Math.min(Math.max(value, min), max);
+}
 
-    if (left <= right)
-        return angle >= left && angle <= right;
+function lerp(min: number, max: number, t: number): number {
+    return min + (max - min) * clamp(0, 1, t);
+}
 
-    // interval wraps across ±π
-
-    return angle >= left || angle <= right;
+function rgbLerp(min: RGB, max: RGB, t: number): RGB {
+    t = clamp(0, 1, t);
+    return {
+        r: lerp(min.r, max.r, t),
+        g: lerp(min.g, max.g, t),
+        b: lerp(min.b, max.b, t),
+    }
 }
 
 function getShortestDelta(to: number, from: number): number {
@@ -211,5 +235,4 @@ function getAngle(cx: number, cy: number, px: number, py: number): number {
     return Math.atan2(py-cy, px-cx);
 }
 
-const state = new ClientState();
-state.update();
+const clientState = new ClientState();

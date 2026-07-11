@@ -1,6 +1,7 @@
 import type { Server as HttpServer } from 'node:http';
 import { Server as SocketIOServer } from 'socket.io';
 import type { ClientToServerEvents, ServerToClientEvents, InterServerEvents, SocketData } from '../SocketTypes.js';
+import { DialPuzzle } from './dial-puzzle.js';
 
 export function initSocket(server: HttpServer): SocketIOServer {
     const io = new SocketIOServer<
@@ -10,8 +11,9 @@ export function initSocket(server: HttpServer): SocketIOServer {
         SocketData
         >(server);
     
+    const puzzle = new DialPuzzle(io);
     io.on("connection", (socket) => {
-        console.log("Connected:", socket.id);
+        puzzle.connect(socket);
     });
 
     return io;

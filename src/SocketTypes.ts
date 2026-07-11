@@ -1,19 +1,44 @@
+export type DialId = "left" | "top" | "right";
+export type MeterId = "left" | "center" | "right";
 
-export interface ServerToClientEvents {
-    noArg: () => void;
-    basicEmit: (a: number, b: string, c: Buffer) => void;
-    withAck: (d: string, callback: (e: number) => void) => void;
+export interface DialOptions {
+    deadZoneLeft: number;
+    deadZoneRight: number;
+}
+
+export interface DialState {
+    id: DialId;
+    angle: number;
+    options: DialOptions;
+}
+
+export interface MeterState {
+    id: MeterId;
+    percent: number;
+    target: number;
+}
+
+export interface PuzzleInitState {
+    dials: DialState[];
+    meters: MeterState[];
+}
+
+export interface PuzzleStateUpdate {
+    dial: DialState;
+    meters: MeterState[];
+    solved: boolean;
 }
 
 export interface ClientToServerEvents {
-    hello: () => void;
+    dialMove: (dial: DialId, pointerDelta: number) => void;
 }
 
-export interface InterServerEvents {
-    ping: () => void;
+export interface ServerToClientEvents {
+    puzzleInit: (state: PuzzleInitState) => void;
+    puzzleState: (state: PuzzleStateUpdate) => void;
+    puzzleSolved: () => void;
 }
 
-export interface SocketData {
-    name: string;
-    age: number;
-}
+export interface InterServerEvents {}
+
+export interface SocketData {}
