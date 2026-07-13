@@ -37,6 +37,8 @@ export interface ServerToClientEvents {
     puzzleInit: (state: PuzzleInitState) => void;
     puzzleState: (state: PuzzleStateUpdate) => void;
     puzzleSolved: () => void;
+    startAudio: () => void;
+    stopAudio: () => void;
 }
 
 export interface InterServerEvents {}

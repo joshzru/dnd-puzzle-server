@@ -161,9 +161,11 @@ class ClientState {
 
     constructor() {
         socket.on("puzzleInit", state => clientState.initialize(state));
+
         socket.on("puzzleSolved", () => {
             console.log("solved!");
-        })
+        });
+
         socket.on("puzzleState", state => {
             const dial = this.dials.get(state.dial.id);
             if ( !dial ) return;
@@ -174,6 +176,19 @@ class ClientState {
                 if ( !m ) return;
                 m.targetPercent = meter.percent;
             }
+        });
+
+        let audio: HTMLAudioElement | undefined;
+        socket.on("startAudio", () => {
+            audio ??= new Audio("/audio/morse.wav");
+            audio.loop = true;
+            audio.play();
+            console.log("Play Audio");
+        });
+
+        socket.on("stopAudio", () => {
+            audio?.pause();
+            if (audio) audio.currentTime = 0;
         })
     }
 

@@ -14,13 +14,16 @@ export class DialPuzzle {
 
     readonly dials = new Map<DialId, Dial>();
     readonly meters = new Map<MeterId, MeterState>();
+    readonly bias = [0.5, 0.5, 0.5];
     readonly relationMatrix = [
-        [1, 2, -1],
-        [2, -1, 1],
-        [-1, 1, 2]
+        [0.25, 0.10, -0.15],
+        [-0.15, 0.25, 0.10],
+        [0.10, -0.15, 0.25]
     ];
 
     solved = false;
+
+    private audioOwnerId?: string
 
     constructor(readonly io: Server<ClientToServerEvents, ServerToClientEvents, InterServerEvents, SocketData>) {
         this.dials.set("left", new Dial({
@@ -55,32 +58,41 @@ export class DialPuzzle {
 
         this.meters.set("left",{
             id: "left",
-            percent: 0.2,
-            target: 0.5,
+            percent: 0,
+            target: 0.28,
         });
 
         this.meters.set("center",{
             id: "center",
-            percent: 0.2,
-            target: 0.5,
+            percent: 0,
+            target: 0.46,
         });
 
         this.meters.set("right",{
             id: "right",
-            percent: 0.2,
-            target: 0.5,
+            percent: 0,
+            target: 0.65,
         });
+        this.computeMeters();
     }
 
     connect(socket: Socket<ClientToServerEvents, ServerToClientEvents>) {
         socket.on("dialMove", (id, pointerDelta)=>{
-                this.moveDial(id, pointerDelta);
-            });
+            this.moveDial(id, pointerDelta);
+        });
+        
+        socket.on("disconnect", () => {
+            if ( socket.id !== this.audioOwnerId ) return;
+            this.audioOwnerId = undefined;
+            this.assignAudioOwner();
+        })
         
         socket.emit("puzzleInit",{
             dials: [...this.dials.values()].map(d=>d.state),
             meters: [...this.meters.values()]
         });
+
+        if ( this.solved ) this.assignAudioOwner();
     }
 
     private moveDial(id: DialId, pointerDelta: number) {
@@ -97,43 +109,70 @@ export class DialPuzzle {
                 solved: this.solved
             });
 
-        if(this.solved) this.io.emit("puzzleSolved");
+        if(this.solved) {
+            this.io.emit("puzzleSolved");
+            this.assignAudioOwner();
+        }
     }
 
     private computeMeters() {
 
-        const angles = [...this.dials.values()].map(d=>d.state.angle);
+    // Normalize dial angles to [-1, 1]
+    const angles = [...this.dials.values()].map(
+        d => d.state.angle / Math.PI
+    );
 
-        const percents =
-            this.relationMatrix.map(row => {
-                    let value = 0;
-                    for( let i = 0; i < 3 ; i++ )
-                        value += row[i] * angles[i];
+    const ids = [
+        "left",
+        "center",
+        "right"
+    ] as const;
 
-                    return value;
-                }
-            );
+    ids.forEach((id, row) => {
 
-        const ids = [
-            "left",
-            "center",
-            "right"
-        ] as const;
+        const meter = this.meters.get(id);
 
-        ids.forEach((id,index) => {
-                const meter = this.meters.get(id);
-                if ( !meter ) return;
-                meter.percent = Math.min(1, Math.max(0, percents[index]));
-            }
-        );
+        if (!meter) return;
+
+        let value = this.bias[row];
+
+        for (let col = 0; col < 3; col++) {
+            value += this.relationMatrix[row][col] * angles[col];
+        }
+
+        meter.percent = Math.min(1, Math.max(0, value));
+    });
+
     }
 
     private checkSolved() {
-        this.solved = [...this.meters.values()].every(m => Math.abs(m.percent - m.target) < 0.01);
+        if ( this.solved ) return;
+        const tolerance = 0.05;
+        this.solved = [...this.meters.values()].every(m => Math.abs(m.percent - m.target) <= tolerance);
+    }
+
+    private assignAudioOwner() {
+        if ( !this.solved ) return;
+        const current = this.audioOwnerId
+            ? this.io.sockets.sockets.get(this.audioOwnerId)
+            : undefined;
+        
+        if (current) return;
+
+        const next = [...this.io.sockets.sockets.values()][0];
+
+        if ( !next ) {
+            this.audioOwnerId = undefined;
+            return;
+        }
+
+        this.audioOwnerId = next.id;
+
+        next.emit("startAudio");
     }
 }
 
-class Dial {  
+class Dial {
 
     constructor(public readonly state: DialState) {}
 
