@@ -1,19 +1,16 @@
-export type DialId = "left" | "top" | "right";
-export type MeterId = "left" | "center" | "right";
-
 export interface DialOptions {
     deadZoneLeft: number;
     deadZoneRight: number;
 }
 
 export interface DialState {
-    id: DialId;
+    id: string;
     angle: number;
     options: DialOptions;
 }
 
 export interface MeterState {
-    id: MeterId;
+    id: string;
     percent: number;
     target: number;
 }
@@ -30,7 +27,7 @@ export interface PuzzleStateUpdate {
 }
 
 export interface ClientToServerEvents {
-    dialMove: (dial: DialId, pointerDelta: number) => void;
+    dialMove: (dial: string, pointerDelta: number) => void;
 }
 
 export interface ServerToClientEvents {

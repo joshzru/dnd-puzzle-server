@@ -14,6 +14,7 @@ export function initSocket(server: HttpServer): SocketIOServer {
     const puzzle = new DialPuzzle(io);
     io.on("connection", (socket) => {
         puzzle.connect(socket);
+        console.log("New Connection");
     });
 
     return io;

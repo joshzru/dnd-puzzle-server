@@ -1,19 +1,43 @@
+import puzzleConfig from "./dial-puzzle.json" with { type: "json" };
 import type { Server, Socket } from "socket.io";
-
-import type {ClientToServerEvents,
+import type {
+    ClientToServerEvents,
     ServerToClientEvents,
     InterServerEvents,
     SocketData,
-    DialId,
     DialState,
+    DialOptions,
     MeterState,
-    MeterId
 } from "../SocketTypes.js";
+
+interface puzzleConfig {
+    meterSettings: {
+        max: number;
+        min: number;
+        num: number;
+    };
+    dialSettings: {
+        max: number;
+        min: number;
+        num: number;
+        dials: {
+            angle: number,
+            options: DialOptions;
+        }[]
+    };
+    relationMatrix: number[][];
+}
 
 export class DialPuzzle {
 
-    readonly dials = new Map<DialId, Dial>();
-    readonly meters = new Map<MeterId, MeterState>();
+    readonly config = {
+        maxDials: 12,
+        minDials: 1,
+        maxMeters: 20,
+        minMeters: 1,
+    }
+    readonly dials = new Map<string, Dial>();
+    readonly meters = new Map<string, MeterState>();
     readonly bias = [0.5, 0.5, 0.5];
     readonly relationMatrix = [
         [0.25, 0.10, -0.15],
@@ -56,24 +80,39 @@ export class DialPuzzle {
             })
         );
 
-        this.meters.set("left",{
+        this.meters.set("left", {
             id: "left",
             percent: 0,
             target: 0.28,
         });
 
-        this.meters.set("center",{
+        this.meters.set("center", {
             id: "center",
             percent: 0,
             target: 0.46,
         });
 
-        this.meters.set("right",{
+        this.meters.set("right", {
             id: "right",
             percent: 0,
             target: 0.65,
         });
         this.computeMeters();
+    }
+
+    createDial(id: string, angle = 0, options: DialOptions = {
+        deadZoneLeft: 3 * Math.PI / 4,
+        deadZoneRight: -3 * Math.PI / 4
+    }): void {
+        this.dials.set(id, new Dial({
+            id: id,
+            angle: angle,
+            options: options
+        }));
+    }
+
+    createMeter(state: MeterState): void {
+        this.meters.set(state.id, state);
     }
 
     connect(socket: Socket<ClientToServerEvents, ServerToClientEvents>) {
@@ -95,10 +134,10 @@ export class DialPuzzle {
         if ( this.solved ) this.assignAudioOwner();
     }
 
-    private moveDial(id: DialId, pointerDelta: number) {
+    private moveDial(id: string, pointerDelta: number) {
         const dial = this.dials.get(id);
 
-        if(!dial) return;
+        if( !dial ) return;
 
         dial.move(pointerDelta);
         this.computeMeters();
@@ -107,16 +146,15 @@ export class DialPuzzle {
                 dial: dial.state,
                 meters: [...this.meters.values()],
                 solved: this.solved
-            });
+        });
 
-        if(this.solved) {
+        if( this.solved ) {
             this.io.emit("puzzleSolved");
             this.assignAudioOwner();
         }
     }
 
     private computeMeters() {
-
     // Normalize dial angles to [-1, 1]
     const angles = [...this.dials.values()].map(
         d => d.state.angle / Math.PI
@@ -132,11 +170,11 @@ export class DialPuzzle {
 
         const meter = this.meters.get(id);
 
-        if (!meter) return;
+        if ( !meter ) return;
 
         let value = this.bias[row];
 
-        for (let col = 0; col < 3; col++) {
+        for ( let col = 0; col < 3; col++ ) {
             value += this.relationMatrix[row][col] * angles[col];
         }
 
@@ -157,7 +195,7 @@ export class DialPuzzle {
             ? this.io.sockets.sockets.get(this.audioOwnerId)
             : undefined;
         
-        if (current) return;
+        if ( current ) return;
 
         const next = [...this.io.sockets.sockets.values()][0];
 
@@ -169,6 +207,54 @@ export class DialPuzzle {
         this.audioOwnerId = next.id;
 
         next.emit("startAudio");
+    }
+
+    private validateConfig(config: any): boolean {
+        const valid = this.getDefaultConfig();
+        return false;
+    }
+
+    private getDefaultConfig(): puzzleConfig {
+        return {
+            meterSettings: {
+                max: 20,
+                min: 1,
+                num: 3,
+            },
+            dialSettings: {
+                max: 12,
+                min: 1,
+                num: 3,
+                dials: [
+                    {
+                        angle: 0,
+                        options: {
+                            deadZoneLeft: 2.35619449,
+                            deadZoneRight: -2.35619449,
+                        }
+                    },
+                    {
+                        angle: 0,
+                        options: {
+                            deadZoneLeft: 2.35619449,
+                            deadZoneRight: -2.35619449,
+                        }
+                    },
+                    {
+                        angle: 0,
+                        options: {
+                            deadZoneLeft: 2.35619449,
+                            deadZoneRight: -2.35619449,
+                        }
+                    },
+                ],
+            },
+            relationMatrix: [
+                [0.25, 0.10, -0.15],
+                [-0.15, 0.25, 0.10],
+                [0.10, -0.15, 0.25],
+            ],
+        }
     }
 }
 
@@ -189,7 +275,7 @@ class Dial {
             deadZoneRight
         } = this.state.options;
 
-        if ( !isAngleBetween(angle, deadZoneLeft, deadZoneRight )) return angle;
+        if ( !isAngleBetween(angle, deadZoneLeft, deadZoneRight) ) return angle;
 
         const left = Math.abs(getShortestDelta(deadZoneLeft, angle));
         const right = Math.abs(getShortestDelta(deadZoneRight, angle));

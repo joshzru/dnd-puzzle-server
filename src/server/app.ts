@@ -12,9 +12,12 @@ export function createApp() {
 
     app.get('/', (req, res) => {
         res.sendFile(join(__public, "index.html"));
-    })
+    });
+    app.get('/admin', (req, res) => {
+        res.sendFile(join(__public, "admin.html"));
+    });
     
-    // Server from /public
+    // Serve from /public
     app.use(express.static(__public));
 
     return app;

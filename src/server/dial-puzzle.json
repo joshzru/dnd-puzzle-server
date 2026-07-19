@@ -1,0 +1,40 @@
+{
+    "meterSettings": {
+        "max": 20,
+        "min": 1,
+        "num": 3        
+    },
+    "dialSettings": {
+        "max": 12,
+        "min": 1,
+        "num": 3,
+        "dials": [
+            {
+                "angle": 0,
+                "options": {
+                    "deadZoneLeft": 2.35619449,
+                    "deadZoneRight": -2.35619449
+                }
+            },
+            {
+                "angle": 0,
+                "options": {
+                    "deadZoneLeft": 2.35619449,
+                    "deadZoneRight": -2.35619449
+                }
+            },
+            {
+                "angle": 0,
+                "options": {
+                    "deadZoneLeft": 2.35619449,
+                    "deadZoneRight": -2.35619449
+                }
+            }
+        ]
+    },
+    "relationMatrix": [
+        [0.25, 0.10, -0.15],
+        [-0.15, 0.25, 0.10],
+        [0.10, -0.15, 0.25]
+    ]
+}
