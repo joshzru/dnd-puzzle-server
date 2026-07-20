@@ -10,18 +10,20 @@ import type {
     MeterState,
 } from "../SocketTypes.js";
 
-interface puzzleConfig {
+interface jsonConfig {
     meterSettings: {
         max: number;
         min: number;
-        num: number;
+        meters: {
+            percent: number;
+            target: number;
+        }[]
     };
     dialSettings: {
         max: number;
         min: number;
-        num: number;
         dials: {
-            angle: number,
+            angle: number;
             options: DialOptions;
         }[]
     };
@@ -30,11 +32,11 @@ interface puzzleConfig {
 
 export class DialPuzzle {
 
-    readonly config = {
-        maxDials: 12,
-        minDials: 1,
-        maxMeters: 20,
-        minMeters: 1,
+    readonly config: {
+        maxDials: number;
+        minDials: number;
+        maxMeters: number;
+        minMeters: number;
     }
     readonly dials = new Map<string, Dial>();
     readonly meters = new Map<string, MeterState>();
@@ -46,57 +48,34 @@ export class DialPuzzle {
     ];
 
     solved = false;
+    nextId = 0;
 
     private audioOwnerId?: string
 
     constructor(readonly io: Server<ClientToServerEvents, ServerToClientEvents, InterServerEvents, SocketData>) {
-        this.dials.set("left", new Dial({
-                id: "left",
-                angle: 0,
-                options: {
-                    deadZoneLeft: 3 * Math.PI / 4,
-                    deadZoneRight: -3 * Math.PI / 4
-                }
+        const validConfig = this.parseConfig(puzzleConfig);
+        this.config = {
+            maxDials: validConfig.dialSettings.max,
+            minDials: validConfig.dialSettings.min,
+            maxMeters: validConfig.meterSettings.max,
+            minMeters: validConfig.meterSettings.min,
+        };
+
+        for ( const dial of validConfig.dialSettings.dials ) {
+            const stringId = this.nextId.toString();
+            this.nextId++;
+            this.createDial(stringId, dial.angle, dial.options);
+        }
+
+        for ( const meter of validConfig.meterSettings.meters ) {
+            const stringId = this.nextId.toString();
+            this.nextId++;
+            this.createMeter({
+                id: stringId,
+                percent: meter.percent,
+                target: meter.target,
             })
-        );
-
-        this.dials.set("top", new Dial({
-                id: "top",
-                angle: 0,
-                options: {
-                    deadZoneLeft: 3 * Math.PI / 4,
-                    deadZoneRight: -3 * Math.PI / 4
-                }
-            })
-        );
-
-        this.dials.set("right", new Dial({
-                id: "right",
-                angle: 0,
-                options: {
-                    deadZoneLeft: 3 * Math.PI / 4,
-                    deadZoneRight: -3 * Math.PI / 4
-                }
-            })
-        );
-
-        this.meters.set("left", {
-            id: "left",
-            percent: 0,
-            target: 0.28,
-        });
-
-        this.meters.set("center", {
-            id: "center",
-            percent: 0,
-            target: 0.46,
-        });
-
-        this.meters.set("right", {
-            id: "right",
-            percent: 0,
-            target: 0.65,
-        });
+        }
         this.computeMeters();
     }
 
@@ -209,43 +188,56 @@ export class DialPuzzle {
         next.emit("startAudio");
     }
 
-    private validateConfig(config: any): boolean {
+    private parseConfig(config: any): jsonConfig {
+        // Get base valid config
         const valid = this.getDefaultConfig();
-        return false;
+        return valid;
     }
 
-    private getDefaultConfig(): puzzleConfig {
+    private getDefaultConfig(): jsonConfig {
         return {
             meterSettings: {
                 max: 20,
                 min: 1,
-                num: 3,
+                meters: [
+                    {
+                        percent: 0,
+                        target: 0.28,
+                    },
+                    {
+                        percent: 0,
+                        target: 0.46,
+                    },
+                    {
+                        percent: 0,
+                        target: 0.65,
+                    },
+                ],
             },
             dialSettings: {
                 max: 12,
                 min: 1,
-                num: 3,
                 dials: [
                     {
                         angle: 0,
                         options: {
                             deadZoneLeft: 2.35619449,
                             deadZoneRight: -2.35619449,
-                        }
+                        },
                     },
                     {
                         angle: 0,
                         options: {
                             deadZoneLeft: 2.35619449,
                             deadZoneRight: -2.35619449,
-                        }
+                        },
                     },
                     {
                         angle: 0,
                         options: {
                             deadZoneLeft: 2.35619449,
                             deadZoneRight: -2.35619449,
-                        }
+                        },
                     },
                 ],
             },

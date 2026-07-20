@@ -2,12 +2,24 @@
     "meterSettings": {
         "max": 20,
         "min": 1,
-        "num": 3        
+        "meters": [
+            {
+                "percent": 0,
+                "target": 0.28
+            },
+            {
+                "percent": 0,
+                "target": 0.46
+            },
+            {
+                "percent": 0,
+                "target": 0.65
+            }
+        ]
     },
     "dialSettings": {
         "max": 12,
         "min": 1,
-        "num": 3,
         "dials": [
             {
                 "angle": 0,

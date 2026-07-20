@@ -1,4 +1,4 @@
-import { type ServerToClientEvents, type ClientToServerEvents, type DialId, MeterId, PuzzleInitState, DialState, MeterState } from '../SocketTypes.js';
+import { type ServerToClientEvents, type ClientToServerEvents, PuzzleInitState, DialState, MeterState } from '../SocketTypes.js';
 import { io, Socket } from 'socket.io-client';
 
 const EPSILON = 1e-4;
@@ -35,6 +35,7 @@ class Meter {
     }
 
     constructor(m: MeterState) {
+        // Need to dynamically create our meter instead of finding it
         this.element = document.querySelector(`#meter-${m.id}`);
         this.volume = this.element?.querySelector(".meter-volume") ?? null;
         this.currentPercent = m.percent;
@@ -60,12 +61,12 @@ class Meter {
 
         this.volume?.setAttribute("height", `${height}`);
         this.volume?.setAttribute("y", `${y}`);
-        this.volume?.setAttribute("fill", `rgb(${color.r},${color.g},${color.b})`);
+        this.volume?.setAttribute("fill", rgbToString(color));
     }
 }
 
 class Dial {
-    readonly id: DialId;
+    readonly id: string;
 
     readonly element: SVGElement | null;
 
@@ -88,6 +89,7 @@ class Dial {
     }
 
     constructor(dial: DialState) {
+        // Need to dynamically create our dial instead of finding it
         this.element = document.querySelector(`#dial-${dial.id}`);
         this.id = dial.id;
         this.currentAngle = dial.angle;
@@ -115,35 +117,24 @@ class Dial {
     private installListeners(socket: Socket) {
 
         this.element?.addEventListener("pointerdown", e => {
-
             if ( this.dragging ) return;
-
             this.dragging = true;
-
             const rect = this.element?.getBoundingClientRect();
-
             if ( !rect ) return;
-
             const cx = rect.left + rect.width / 2;
             const cy = rect.top + rect.height / 2;
-
             this.lastPointerAngle = getAngle(cx, cy, e.clientX, e.clientY);
         });
 
         window.addEventListener("pointermove", e => {
             if ( !this.dragging ) return;
-
             const rect = this.element?.getBoundingClientRect();
-
             if ( !rect ) return;
-
             const cx = rect.left + rect.width / 2;
             const cy = rect.top + rect.height / 2;
-
             const newAngle = getAngle(cx, cy, e.clientX, e.clientY);
             const delta =  getShortestDelta(newAngle, this.lastPointerAngle);
             this.lastPointerAngle = newAngle;
-
             socket.emit("dialMove", this.id, delta);
         });
 
@@ -156,8 +147,8 @@ class Dial {
 
 class ClientState {
 
-    dials = new Map<DialId, Dial>();
-    meters = new Map<MeterId, Meter>();
+    dials = new Map<string, Dial>();
+    meters = new Map<string, Meter>();
 
     constructor() {
         socket.on("puzzleInit", state => clientState.initialize(state));
@@ -230,6 +221,10 @@ function rgbLerp(min: RGB, max: RGB, t: number): RGB {
         g: lerp(min.g, max.g, t),
         b: lerp(min.b, max.b, t),
     }
+}
+
+function rgbToString(color: RGB): string {
+    return `rgb(${color.r},${color.g},${color.b})`;
 }
 
 function getShortestDelta(to: number, from: number): number {
