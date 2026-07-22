@@ -4,12 +4,13 @@
   "description": "A local server to host my interactive D&D puzzles for my players.",
   "type": "module",
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && shx mkdir -p dist/server/public && shx cp -r dist/client/* dist/server/public/ && shx rm -rf dist/client && shx cp -r public/* dist/server/public",
     "start": "node dist/index.js"
   },
   "devDependencies": {
     "@tsconfig/node26": "^26.0.0",
     "@types/express": "^5.0.6",
+    "shx": "^0.4.0",
     "typescript": "^6.0.3"
   },
   "dependencies": {
