@@ -44,9 +44,9 @@ body {
     justify-content: center;
 }
 
-.meter-row,
-.dials-top,
-.dials-bottom {
+#meter-row,
+#dials-top,
+#dials-bottom {
     display: flex;
     flex-direction: row;
     justify-content: center;

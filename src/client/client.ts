@@ -36,11 +36,49 @@ class Meter {
 
     constructor(m: MeterState) {
         // Need to dynamically create our meter instead of finding it
-        this.element = document.querySelector(`#meter-${m.id}`);
-        this.volume = this.element?.querySelector(".meter-volume") ?? null;
+        //this.element = document.querySelector(`#meter-${m.id}`);
+        //this.volume = this.element?.querySelector(".meter-volume") ?? null;
         this.currentPercent = m.percent;
         this.targetPercent = m.percent;
         this.solutionPercent = m.target;
+
+        const div = document.getElementById('meter-row');
+        if ( !div ) {
+            this.element = null;
+            this.volume = null;
+            console.error("The meter-row element is null");
+            return;
+        }
+        this.element = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        this.element.id = m.id;
+        this.element.setAttribute('width', '100');
+        this.element.setAttribute('height', '300');
+        this.element.classList.add('meter');
+        
+        this.volume = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+        this.volume.setAttribute('width', '90');
+        // Calculate starting volume and color
+        const height = lerp(this.minHeight, this.maxHeight, this.currentPercent);
+        const y = this.bottomY - height;
+        const difference = Math.abs(this.currentPercent - this.solutionPercent);
+        const t = 1 - clamp(0, 1, difference / 0.5);
+        const color = rgbLerp(this.red, this.green, t);
+        this.volume.setAttribute('height', `${height}`);
+        this.volume.setAttribute('x', '5');
+        this.volume.setAttribute('y', `${y}`);
+        this.volume.setAttribute('fill', rgbToString(color));
+        this.volume.classList.add('meter-volume');
+
+        const border = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+        border.setAttribute('width', '90');
+        border.setAttribute('height', '290');
+        border.setAttribute('x', '5');
+        border.setAttribute('y', '5');
+        border.classList.add('meter-border');
+
+        this.element.appendChild(this.volume);
+        this.element.appendChild(border);
+        div.appendChild(this.element);
     }
 
     update() {
@@ -90,13 +128,52 @@ class Dial {
 
     constructor(dial: DialState) {
         // Need to dynamically create our dial instead of finding it
-        this.element = document.querySelector(`#dial-${dial.id}`);
+        //this.element = document.querySelector<SVGElement>(`#dial-${dial.id}`);
         this.id = dial.id;
         this.currentAngle = dial.angle;
         this.targetAngle = dial.angle;
         this.lastPointerAngle = dial.angle;
         this.deadZoneLeft = normalizeAngle(dial.options.deadZoneLeft);
         this.deadZoneRight = normalizeAngle(dial.options.deadZoneRight);
+
+        const div = this.getNextDiv();
+        if ( !div ) {
+            this.element = null;
+            console.error("The next div element is null");
+            return;
+        }
+        this.element = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        this.element.id = this.id;
+        this.element.setAttribute('width', '150');
+        this.element.setAttribute('height', '150');
+        this.element.classList.add('dial');
+        this.element.style.setProperty(
+            'transform',
+            `rotate(${this.currentAngle}rad)`
+        )
+
+        const knob = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        knob.classList.add('dial-knob');
+        knob.setAttribute('cx', '75');
+        knob.setAttribute('cy', '75');
+        knob.setAttribute('r', '60');
+
+        const rotor = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+        rotor.classList.add('dial-rotor');
+        rotor.setAttribute('width', '5');
+        rotor.setAttribute('height', '20');
+        rotor.setAttribute('x', '70');
+        rotor.setAttribute('y', '20');
+        rotor.setAttribute('rx', '2');
+
+        const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+        g.classList.add('rotating-parts');
+
+        this.element.appendChild(knob);
+        g.appendChild(rotor);
+        this.element.appendChild(g);
+        div.appendChild(this.element);
+
         this.installListeners(socket);
     }
 
@@ -143,6 +220,14 @@ class Dial {
             this.dragging = false;
         });
     }
+
+    private getNextDiv(): HTMLElement | null {
+        const top = document.getElementById("dials-top");
+        const bot = document.getElementById("dials-bottom");
+        if ( !top || !bot ) return null;
+        // bottom breaks ties
+        return top.childElementCount < bot.childElementCount ? top : bot;
+    }
 }
 
 class ClientState {
@@ -184,6 +269,15 @@ class ClientState {
     }
 
     initialize(state: PuzzleInitState) {
+        this.dials.clear();
+        this.meters.clear();
+        for ( const id of ['meter-row', 'dials-top', 'dials-bottom'] ) {
+            const el = document.getElementById(id);
+            while ( el?.lastElementChild ) {
+                el?.removeChild(el?.lastElementChild);
+            }
+        }
+        
         state.dials.forEach(d => {
             this.dials.set(d.id, new Dial(d));
         })

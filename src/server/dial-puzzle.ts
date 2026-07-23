@@ -62,14 +62,12 @@ export class DialPuzzle {
         };
 
         for ( const dial of validConfig.dialSettings.dials ) {
-            const stringId = this.nextId.toString();
-            this.nextId++;
+            const stringId = `dial-${this.nextId++}`;
             this.createDial(stringId, dial.angle, dial.options);
         }
 
         for ( const meter of validConfig.meterSettings.meters ) {
-            const stringId = this.nextId.toString();
-            this.nextId++;
+            const stringId = `meter-${this.nextId++}`;
             this.createMeter({
                 id: stringId,
                 percent: meter.percent,
@@ -139,6 +137,8 @@ export class DialPuzzle {
         d => d.state.angle / Math.PI
     );
 
+    // Need to rewrite this to dynamically find each meter's entry in the
+    // Relation matrix, or use something other than a matrix
     const ids = [
         "left",
         "center",
