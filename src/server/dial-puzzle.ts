@@ -137,26 +137,17 @@ export class DialPuzzle {
         d => d.state.angle / Math.PI
     );
 
-    // Need to rewrite this to dynamically find each meter's entry in the
-    // Relation matrix, or use something other than a matrix
-    const ids = [
-        "left",
-        "center",
-        "right"
-    ] as const;
+    const ids = [...this.meters.values()].map(
+        m => m.id
+    )
 
     ids.forEach((id, row) => {
-
         const meter = this.meters.get(id);
-
         if ( !meter ) return;
-
         let value = this.bias[row];
-
         for ( let col = 0; col < 3; col++ ) {
             value += this.relationMatrix[row][col] * angles[col];
         }
-
         meter.percent = Math.min(1, Math.max(0, value));
     });
 
