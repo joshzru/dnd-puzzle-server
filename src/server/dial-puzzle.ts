@@ -104,7 +104,7 @@ export class DialPuzzle {
         })
         
         socket.emit("puzzleInit",{
-            dials: [...this.dials.values()].map(d=>d.state),
+            dials: [...this.dials.values()].map(d => d.state),
             meters: [...this.meters.values()]
         });
 
@@ -132,24 +132,24 @@ export class DialPuzzle {
     }
 
     private computeMeters() {
-    // Normalize dial angles to [-1, 1]
-    const angles = [...this.dials.values()].map(
-        d => d.state.angle / Math.PI
-    );
+        // Normalize dial angles to [-1, 1]
+        const angles = [...this.dials.values()].map(
+            d => d.state.angle / Math.PI
+        );
 
-    const ids = [...this.meters.values()].map(
-        m => m.id
-    )
+        const ids = [...this.meters.values()].map(
+            m => m.id
+        )
 
-    ids.forEach((id, row) => {
-        const meter = this.meters.get(id);
-        if ( !meter ) return;
-        let value = this.bias[row];
-        for ( let col = 0; col < 3; col++ ) {
-            value += this.relationMatrix[row][col] * angles[col];
-        }
-        meter.percent = Math.min(1, Math.max(0, value));
-    });
+        ids.forEach((id, row) => {
+            const meter = this.meters.get(id);
+            if ( !meter ) return;
+            let value = this.bias[row];
+            for ( let col = 0; col < 3; col++ ) {
+                value += this.relationMatrix[row][col] * angles[col];
+            }
+            meter.percent = Math.min(1, Math.max(0, value));
+        });
 
     }
 
