@@ -26,6 +26,7 @@ export function createApp(): Express {
             maxAge: 1000 * 60 * 60 // 1 hour
         },
     }))
+    app.use(express.static(__public));
 
     app.get('/', (req: Request, res: Response) => {
         res.sendFile(join(__public, "index.html"));
@@ -44,9 +45,6 @@ export function createApp(): Express {
         }
         res.redirect("/admin/login?error=1");
     })
-    
-    // Serve from /public
-    app.use(express.static(__public));
 
     return app;
 }
