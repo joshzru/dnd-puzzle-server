@@ -1,21 +1,23 @@
 import type { Server as HttpServer } from 'node:http';
-import { Server as SocketIOServer } from 'socket.io';
+import { Namespace, Server as SocketIOServer } from 'socket.io';
 import type { ClientToServerEvents, ServerToClientEvents, InterServerEvents, SocketData } from '../SocketTypes.js';
 import { DialPuzzle } from './dial-puzzle.js';
 
-export function initSocket(server: HttpServer): SocketIOServer {
+export interface IONamespaces {
+    default: SocketIOServer<ClientToServerEvents, ServerToClientEvents, InterServerEvents, SocketData>;
+    admin: Namespace<ClientToServerEvents, ServerToClientEvents, InterServerEvents, SocketData>
+}
+
+export function initSocket(server: HttpServer): IONamespaces {
     const io = new SocketIOServer<
         ClientToServerEvents,
         ServerToClientEvents,
         InterServerEvents,
         SocketData
         >(server);
-    
-    const puzzle = new DialPuzzle(io);
-    io.on("connection", (socket) => {
-        puzzle.connect(socket);
-        console.log("New Connection");
-    });
 
-    return io;
+    return {
+        default: io,
+        admin: io.of("/admin"),
+    }
 }

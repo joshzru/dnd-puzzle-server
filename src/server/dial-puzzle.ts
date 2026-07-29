@@ -32,6 +32,7 @@ interface jsonConfig {
 
 export class DialPuzzle {
 
+    readonly id = 'dial-puzzle';
     readonly config: {
         maxDials: number;
         minDials: number;
@@ -109,6 +110,14 @@ export class DialPuzzle {
         });
 
         if ( this.solved ) this.assignAudioOwner();
+    }
+
+    open(io: Server<ClientToServerEvents, ServerToClientEvents, InterServerEvents, SocketData>): boolean {
+        return true;
+    }
+
+    close(): void {
+
     }
 
     private moveDial(id: string, pointerDelta: number) {
