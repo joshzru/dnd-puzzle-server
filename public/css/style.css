@@ -1,0 +1,107 @@
+:root {
+  --rosewater: #f2d5cf;
+  --flamingo: #eebebe;
+  --pink: #f4b8e4;
+  --mauve: #ca9ee6;
+  --red: #e78284;
+  --maroon: #ea999c;
+  --peach: #ef9f76;
+  --yellow: #e6c890;
+  --green: #a6d189;
+  --teal: #81c8be;
+  --sky: #99d1db;
+  --sapphire: #85c1dc;
+  --blue: #8caaee;
+  --lavender: #babbf1;
+  --text: #c6d0f5;
+  --subtext-1: #b5bfe2;
+  --subtext-0: #a5adce;
+  --overlay-2: #949cbb;
+  --overlay-1: #838ba7;
+  --overlay-0: #737994;
+  --surface-2: #626880;
+  --surface-1: #51576d;
+  --surface-0: #414559;
+  --base: #303446;
+  --mantle: #292c3c;
+  --crust: #232634;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: system-ui, sans-serif;
+    background: linear-gradient(135deg, var(--mantle), var(--crust));
+    color: var(--text);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100svh;
+}
+
+.container {
+    width: 100%;
+    padding: 2rem;
+}
+
+.card {
+    max-width: 520px;
+    margin: auto;
+    background: var(--base);
+    border: 1px solid var(--surface-2);
+    border-top: 3px solid var(--pink);
+    border-radius: 12px;
+    padding: 3rem;
+    text-align: center;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+}
+
+h1 {
+    font-size: 2.2rem;
+    margin-bottom: 1rem;
+    color: var(--lavender);
+}
+
+.subtitle {
+    color: var(--subtext-1);
+    margin-bottom: 1.5rem;
+    font-size: 1.1rem;
+}
+
+p {
+    line-height: 1.6;
+    margin-bottom: 2rem;
+    color: var(--subtext-0);
+}
+
+button {
+    background: var(--blue);
+    color: var(--crust);
+    border: none;
+    border-radius: 8px;
+    padding: 0.9rem 2rem;
+    font-size: 1rem;
+    cursor: pointer;
+    transition:
+        background-color 0.2s ease,
+        transform 0.15s ease,
+        box-shadow 0.2s ease;
+}
+
+button:hover {
+    background: var(--lavender);
+    box-shadow: 0 4px 16px rgba(75, 123, 236, 0.35);
+}
+
+button:active {
+    transform: scale(0.97);
+}
+
+button:focus-visible {
+    outline: 2px solid var(--sky);
+    outline-offset: 3px;
+}

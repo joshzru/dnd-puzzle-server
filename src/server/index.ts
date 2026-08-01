@@ -3,22 +3,21 @@ import { Server as SocketIOServer } from 'socket.io';
 import { createApp } from './app.js';
 import { initSocket } from './socket.js';
 import { ClientToServerEvents, InterServerEvents, ServerToClientEvents, SocketData } from '../SocketTypes.js';
-import { DialPuzzle } from './dial-puzzle.js';
 
-interface PuzzleClass {
-    id: string;
-    open: (io: SocketIOServer<ClientToServerEvents, ServerToClientEvents, InterServerEvents, SocketData>) => boolean;
-    close: () => void;
+interface Puzzle {
+    readonly id: string;
+    install(io: SocketIOServer<ClientToServerEvents, ServerToClientEvents, InterServerEvents, SocketData>): void;
+    uninstall(): void;
 }
 
-class PuzzleHandler {
-    private queue: PuzzleClass[] = []
+class PuzzleManager {
+    private queue: Puzzle[] = []
 
-    constructor(initQueue?: PuzzleClass[]) {
+    constructor(initQueue?: Puzzle[]) {
         if ( initQueue !== undefined ) this.queue = initQueue;
     }
 
-    enqueue(puzzle: PuzzleClass): void {
+    enqueue(puzzle: Puzzle): void {
         this.queue.push(puzzle);
     }
 

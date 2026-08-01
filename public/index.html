@@ -1,28 +1,24 @@
 <!DOCTYPE html>
 <html>
   <head>
+    <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width,initial-scale=1.0">
-    <link rel="stylesheet" href="/css/styles.css" />
+    <title>Puzzle Waiting Room</title>
+    <link rel="stylesheet" href="/css/style.css" />
   </head>
   <body>
-    <div class="container">
-        <div id="meter-row">
-
-        </div>
-        <div id="dials-top">
-
-        </div>
-        <div id="dials-bottom">
-
-        </div>
-    </div>
-    <script type="importmap">
-      {
-        "imports": {
-          "socket.io-client": "https://cdn.socket.io/4.8.3/socket.io.esm.min.js"
-        }
-      }
+    <main class="container">
+      <div class="card">
+        <h1>No Puzzle Available</h1>
+        <p class="subtitle">The DM hasn't started the next puzzle yet.</p>
+        <p>Please wait until the next puzzle is ready, then refresh the page.</p>
+        <button id="refreshButton">Refresh</button>
+      </div>
+    </main>
+    <script>
+      document.getElementById("refreshButton").addEventListener("click", () => {
+        window.location.reload();
+      })
     </script>
-    <script type="module" src="/client.js"></script>
   </body>
 </html>
