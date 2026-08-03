@@ -1,7 +1,6 @@
 import type { Server as HttpServer } from 'node:http';
 import { Namespace, Server as SocketIOServer } from 'socket.io';
-import type { ClientToServerEvents, ServerToClientEvents, InterServerEvents, SocketData } from '../SocketTypes.js';
-import { DialPuzzle } from './dial-puzzle.js';
+import type { ClientToServerEvents, ServerToClientEvents, InterServerEvents, SocketData } from '../types/socket.js';
 
 export interface IONamespaces {
     default: SocketIOServer<ClientToServerEvents, ServerToClientEvents, InterServerEvents, SocketData>;

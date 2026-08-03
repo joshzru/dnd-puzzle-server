@@ -4,7 +4,7 @@
   "description": "A local server to host my interactive D&D puzzles for my players.",
   "type": "module",
   "scripts": {
-    "build": "tsc && shx mkdir -p dist/server/public && shx mkdir -p dist/server/views && cpy \"src/views/**/*.{html,css}\" dist/views --parents && shx rm -rf dist/client && shx cp -r public/* dist/server/public",
+    "build": "tsc && shx mkdir -p dist/server/public && shx mkdir -p dist/server/views && cpy \"src/views/**/*.{html,css}\" dist/server/views --parents && cpy \"dist/views/**/*.js\" dist/server/views && shx cp -r public/* dist/server/public && shx rm -rf dist/client && shx rm -rf dist/views",
     "start": "node dist/index.js"
   },
   "devDependencies": {

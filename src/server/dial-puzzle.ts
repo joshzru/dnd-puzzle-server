@@ -1,14 +1,14 @@
 import puzzleConfig from "./dial-puzzle.json" with { type: "json" };
-import type { Server, Socket } from "socket.io";
+import { Puzzle } from "./Puzzle.js";
+import type { Socket } from "socket.io";
 import type {
     ClientToServerEvents,
     ServerToClientEvents,
-    InterServerEvents,
-    SocketData,
     DialState,
     DialOptions,
     MeterState,
-} from "../SocketTypes.js";
+} from "../types/socket.js";
+import type { SocketIOServer } from "../types/socket.js";
 
 interface jsonConfig {
     meterSettings: {
@@ -30,9 +30,9 @@ interface jsonConfig {
     relationMatrix: number[][];
 }
 
-export class DialPuzzle {
+export class DialPuzzle extends Puzzle {
 
-    readonly id = 'dial-puzzle';
+    static readonly id = 'dial-puzzle';
     readonly config: {
         maxDials: number;
         minDials: number;
@@ -51,9 +51,8 @@ export class DialPuzzle {
     solved = false;
     nextId = 0;
 
-    private audioOwnerId?: string
-
-    constructor(readonly io: Server<ClientToServerEvents, ServerToClientEvents, InterServerEvents, SocketData>) {
+    constructor(readonly io: SocketIOServer) {
+        super();
         const validConfig = this.parseConfig(puzzleConfig);
         this.config = {
             maxDials: validConfig.dialSettings.max,
@@ -78,6 +77,14 @@ export class DialPuzzle {
         this.computeMeters();
     }
 
+    install(io: SocketIOServer) {
+
+    }
+
+    uninstall() {
+
+    }
+
     createDial(id: string, angle = 0, options: DialOptions = {
         deadZoneLeft: 3 * Math.PI / 4,
         deadZoneRight: -3 * Math.PI / 4
@@ -98,26 +105,10 @@ export class DialPuzzle {
             this.moveDial(id, pointerDelta);
         });
         
-        socket.on("disconnect", () => {
-            if ( socket.id !== this.audioOwnerId ) return;
-            this.audioOwnerId = undefined;
-            this.assignAudioOwner();
-        })
-        
         socket.emit("puzzleInit",{
             dials: [...this.dials.values()].map(d => d.state),
             meters: [...this.meters.values()]
         });
-
-        if ( this.solved ) this.assignAudioOwner();
-    }
-
-    open(io: Server<ClientToServerEvents, ServerToClientEvents, InterServerEvents, SocketData>): boolean {
-        return true;
-    }
-
-    close(): void {
-
     }
 
     private moveDial(id: string, pointerDelta: number) {
@@ -134,10 +125,7 @@ export class DialPuzzle {
                 solved: this.solved
         });
 
-        if( this.solved ) {
-            this.io.emit("puzzleSolved");
-            this.assignAudioOwner();
-        }
+        if( this.solved ) this.io.emit("puzzleSolved");
     }
 
     private computeMeters() {
@@ -166,26 +154,6 @@ export class DialPuzzle {
         if ( this.solved ) return;
         const tolerance = 0.05;
         this.solved = [...this.meters.values()].every(m => Math.abs(m.percent - m.target) <= tolerance);
-    }
-
-    private assignAudioOwner() {
-        if ( !this.solved ) return;
-        const current = this.audioOwnerId
-            ? this.io.sockets.sockets.get(this.audioOwnerId)
-            : undefined;
-        
-        if ( current ) return;
-
-        const next = [...this.io.sockets.sockets.values()][0];
-
-        if ( !next ) {
-            this.audioOwnerId = undefined;
-            return;
-        }
-
-        this.audioOwnerId = next.id;
-
-        next.emit("startAudio");
     }
 
     private parseConfig(config: any): jsonConfig {

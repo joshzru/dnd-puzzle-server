@@ -1,4 +1,4 @@
-import { type ServerToClientEvents, type ClientToServerEvents, PuzzleInitState, DialState, MeterState } from '../../../SocketTypes.js';
+import type { ServerToClientEvents, ClientToServerEvents, PuzzleInitState, DialState, MeterState } from '../../../types/socket.js';
 import { io, Socket } from 'socket.io-client';
 
 const EPSILON = 1e-4;

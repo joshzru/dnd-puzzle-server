@@ -1,7 +1,8 @@
-import express, { NextFunction, type Express, type Request, type Response} from 'express';
+import express, { type NextFunction, type Express, type Request, type Response} from 'express';
 import session from 'express-session';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
+import { PuzzleManager } from './PuzzleManagement.js'
 import 'dotenv/config';
 
 const __dirname: string = dirname(fileURLToPath(import.meta.url));
@@ -10,7 +11,7 @@ const __views: string = join(__dirname, "views");
 
 console.log(__dirname);
 
-export function createApp(): Express {
+export function createApp(manager: PuzzleManager): Express {
     const app = express()
 
     // Use Middleware
@@ -25,11 +26,22 @@ export function createApp(): Express {
             sameSite: 'lax',
             maxAge: 1000 * 60 * 60 // 1 hour
         },
-    }))
+    }));
+    app.use('/puzzle', (req: Request, res: Response, next: NextFunction) => {
+        const puzzleId = manager.getCurrentId();
+        if ( puzzleId === null ) {
+            res.sendStatus(404);
+            return;
+        }
+        express.static(getPuzzleRoute(puzzleId))(req, res, next);
+    })
     app.use(express.static(__public));
 
     app.get('/', (req: Request, res: Response) => {
-        res.sendFile(join(__public, "index.html"));
+        const puzzleId = manager.getCurrentId();
+        if ( puzzleId === null ) return res.sendFile(join(__public, 'index.html'));
+        const root = getPuzzleRoute(puzzleId);
+        res.sendFile(join(root, 'index.html'));
     });
     app.get('/admin', requireAuth, (req, res) => {
         res.sendFile(join(__views, "admin.html"));
@@ -37,6 +49,7 @@ export function createApp(): Express {
     app.get("/admin/login", (req: Request, res: Response) => {
         res.sendFile(join(__views, "login.html"));
     })
+
     app.post("/admin/login", (req: Request, res: Response) => {
         const password = req.body.password;
         if ( password === getEnv("ADMIN_PASSWORD") ) {
@@ -59,4 +72,8 @@ function getEnv(key: string, fallback?: string): string {
     if ( value === undefined )
         throw new Error(`Missing required env var: ${key}`);
     return value;
+}
+
+function getPuzzleRoute(id: string) {
+    return join(__views, 'puzzles', id);
 }

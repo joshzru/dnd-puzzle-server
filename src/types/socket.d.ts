@@ -38,6 +38,12 @@ export interface ServerToClientEvents {
     stopAudio: () => void;
 }
 
-export interface InterServerEvents {}
+export interface InterServerEvents {
 
-export interface SocketData {}
+}
+
+export interface SocketData {
+    
+}
+
+export type SocketIOServer = Server<ClientToServerEvents, ServerToClientEvents, InterServerEvents, SocketData>;
