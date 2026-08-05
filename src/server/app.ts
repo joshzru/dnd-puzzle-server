@@ -2,7 +2,7 @@ import express, { type NextFunction, type Express, type Request, type Response} 
 import session from 'express-session';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { PuzzleManager } from './PuzzleManagement.js'
+import { PuzzleQueue } from './PuzzleManagement.js'
 import 'dotenv/config';
 
 const __dirname: string = dirname(fileURLToPath(import.meta.url));
@@ -11,7 +11,7 @@ const __views: string = join(__dirname, "views");
 
 console.log(__dirname);
 
-export function createApp(manager: PuzzleManager): Express {
+export function createApp(manager: PuzzleQueue): Express {
     const app = express()
 
     // Use Middleware

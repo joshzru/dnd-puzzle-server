@@ -4,44 +4,47 @@ import type { SocketIOServer } from "../types/socket.js";
 
 type PuzzleConstructor = new (io: SocketIOServer) => Puzzle;
 
-export class PuzzleManager {
+export class PuzzleQueue {
     private queue: string[] = [];
-    private io: SocketIOServer | undefined = undefined;
-    private currentPuzzle: Puzzle | null = null;
 
     constructor(initQueue?: string[]) {
         if ( initQueue !== undefined ) this.queue = initQueue;
     }
 
-    attachSocket(io: SocketIOServer) {
-        this.io = io;
-    }
-
-    setQueue(q: string[]): void {
+    setQueue(q: string[]) {
         this.queue = q;
     }
 
-    clearQueue(): void {
-        this.queue.length = 0;
+    clear() {
+        this.queue = [];
     }
 
-    resetPuzzle(): void {
-        if ( this.io === undefined ) throw new Error("Socket not attached.");
-        const id = this.getCurrentId();
-        if ( id === null ) throw new Error("No puzzle to reset");
-        this.uninstall();
-        this.install();
-        this.io.emit("reset");
+    advance() {
+
     }
 
     getCurrentId(): string | null {
         return this.queue.length === 0 ? null : this.queue[0];
     }
+}
 
-    advance(): void {
+export class PuzzleManager {
+    private puzzleQueue: PuzzleQueue;
+    private io: SocketIOServer;
+    private currentPuzzle: Puzzle | null = null;
+
+    constructor(puzzleQueue: PuzzleQueue, io: SocketIOServer) {
+        this.puzzleQueue = puzzleQueue;
+        this.io = io;
+    }
+
+    resetPuzzle(): void {
         if ( this.io === undefined ) throw new Error("Socket not attached.");
-        // uninstall the current puzzle and install the next in the queue if one
-        // exists
+        const id = this.puzzleQueue.getCurrentId();
+        if ( id === null ) throw new Error("No puzzle to reset");
+        this.uninstall();
+        this.install();
+        this.io.emit("reset");
     }
 
     private uninstall(): void {
@@ -52,7 +55,7 @@ export class PuzzleManager {
 
     private install(): void {
         if ( this.io === undefined ) throw new Error("Socket not attached");
-        const id = this.getCurrentId();
+        const id = this.puzzleQueue.getCurrentId();
         if ( id === null ) throw new Error("No puzzle to install");
 
         // Uninstall current puzzle

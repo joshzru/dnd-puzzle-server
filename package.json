@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "build": "tsc && shx mkdir -p dist/server/public && shx mkdir -p dist/server/views && cpy \"src/views/**/*.{html,css}\" dist/server/views --parents && cpy \"dist/views/**/*.js\" dist/server/views && shx cp -r public/* dist/server/public && shx rm -rf dist/client && shx rm -rf dist/views",
-    "start": "node dist/index.js"
+    "dev": "node dist/server/index.js"
   },
   "devDependencies": {
     "@tsconfig/node26": "^26.0.0",
